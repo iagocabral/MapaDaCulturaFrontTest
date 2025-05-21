@@ -1,0 +1,33 @@
+{
+  "name": "minc-testes-front",
+  "version": "1.0.0",
+  "description": "Testes automatizados para o frontend do sistema do MinC",
+  "main": "run-all-tests.ts",
+  "type": "commonjs",
+  "scripts": {
+    "test": "ts-node run-all-tests.ts",
+    "test:agente": "ts-node criar-agente-completo.ts",
+    "test:espaco": "ts-node criar-espaco.ts",
+    "test:evento": "ts-node criar-evento.ts", 
+    "test:oportunidade": "ts-node criar-oportunidade.ts",
+    "test:projeto": "ts-node criar-projeto.ts",
+    "record": "npx playwright codegen",
+    "record:url": "ts-node record-session.ts",
+    "record:save": "ts-node save-recording.ts",
+    "view:recording": "npx playwright show-trace trace.zip",
+    "install:playwright": "npx playwright install",
+    "setup": "npm install && npm run install:playwright"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  }
+}
