@@ -9,24 +9,62 @@ interface CookieInput {
   ts01868f16?: string; // Made optional
 }
 
+interface TargetEnv {
+  targetUrl: string;
+}
+
 (async () => {
   const cookieInputPath = path.join(__dirname, 'cookie-input.json');
   const authOutputPath = path.join(__dirname, 'auth.json');
+  const targetEnvPath = path.join(__dirname, 'target-env.json');
 
   if (!fs.existsSync(cookieInputPath)) {
     console.error(`Error: ${cookieInputPath} not found.`);
     console.error('Please create it with the required cookie values or use the UI to generate it.');
     process.exit(1);
   }
-
-  let cookieData: CookieInput;
-  try {
-    const rawData = fs.readFileSync(cookieInputPath, 'utf-8');
-    cookieData = JSON.parse(rawData);
-  } catch (error) {
-    console.error(`Error reading or parsing ${cookieInputPath}:`, error);
+  if (!fs.existsSync(targetEnvPath)) {
+    console.error(`Error: ${targetEnvPath} not found. Please configure target environment via UI first.`);
     process.exit(1);
   }
+
+  let cookieData: CookieInput;
+  let targetData: TargetEnv;
+
+  try {
+    const rawCookieData = fs.readFileSync(cookieInputPath, 'utf-8');
+    // Add similar check for cookie-input.json if it can also be empty
+    if (!rawCookieData.trim()) {
+        console.error(`Error: ${cookieInputPath} is empty or contains only whitespace.`);
+        process.exit(1);
+    }
+    cookieData = JSON.parse(rawCookieData);
+
+    const rawTargetData = fs.readFileSync(targetEnvPath, 'utf-8');
+    if (!rawTargetData.trim()) { // Check if the file content is empty or just whitespace
+      console.error(`Error: ${targetEnvPath} is empty or contains only whitespace. Please ensure target environment is configured correctly via UI and auth.json is generated again.`);
+      process.exit(1);
+    }
+    targetData = JSON.parse(rawTargetData);
+  } catch (error) {
+    console.error(`Error reading or parsing configuration files:`, error);
+    process.exit(1);
+  }
+
+  if (!targetData.targetUrl) {
+    console.error(`Error: targetUrl not found in ${targetEnvPath}.`);
+    process.exit(1);
+  }
+
+  let domain;
+  try {
+    const url = new URL(targetData.targetUrl);
+    domain = url.hostname;
+  } catch (error) {
+    console.error(`Error parsing targetUrl "${targetData.targetUrl}":`, error);
+    process.exit(1);
+  }
+
 
   if (!cookieData.uid || !cookieData.phpsessid) { // Removed check for ts01868f16
     console.error(`Error: Missing one or more required fields (uid, phpsessid) in ${cookieInputPath}.`);
@@ -40,7 +78,7 @@ interface CookieInput {
     {
       name: 'mapasculturais.uid',
       value: cookieData.uid,
-      domain: 'hmg2-mapa.cultura.gov.br',
+      domain: domain, // Use dynamic domain
       path: '/',
       httpOnly: false,
       secure: true,
@@ -50,7 +88,7 @@ interface CookieInput {
     {
       name: 'PHPSESSID',
       value: cookieData.phpsessid,
-      domain: 'hmg2-mapa.cultura.gov.br',
+      domain: domain, // Use dynamic domain
       path: '/',
       httpOnly: true,
       secure: true,
@@ -64,7 +102,7 @@ interface CookieInput {
     cookies.push({
       name: 'TS01868f16',
       value: cookieData.ts01868f16,
-      domain: 'hmg2-mapa.cultura.gov.br',
+      domain: domain, // Use dynamic domain
       path: '/',
       httpOnly: true,
       secure: true,

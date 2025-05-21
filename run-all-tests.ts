@@ -112,6 +112,13 @@ function checkAuthFile(): boolean {
 
 // Main function to run all tests
 async function runAllTests() {
+  const targetUrl = process.env.TARGET_URL;
+  if (targetUrl) {
+    console.log(`\n🎯 Running all tests against: ${targetUrl}`);
+  } else {
+    console.warn('\n⚠️ TARGET_URL environment variable not set. Tests might use default URLs or fail if they rely on it.');
+  }
+
   console.log(`\n${'*'.repeat(100)}`);
   console.log(`🧪 EXECUTANDO TODOS OS TESTES AUTOMATIZADOS`);
   console.log(`${'*'.repeat(100)}\n`);

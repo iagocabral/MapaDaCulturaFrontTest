@@ -5,6 +5,7 @@ import * as path from 'path';
 (async () => {
   // Define o caminho do arquivo que armazenará o contador
   const counterFilePath = path.join(__dirname, '../contadores', 'event-counter.txt');
+  const targetEnvPath = path.join(__dirname, '../config/target-env.json'); // Added
   
   // Lê o contador atual do arquivo ou usa 1 se não existir
   let counter = 1;
@@ -28,6 +29,29 @@ import * as path from 'path';
   const eventName = `Evento Automático ${counter} (${dateStr} ${timeStr})`;
   
   console.log(`🔢 Criando evento #${counter}`);
+
+  let targetUrl: string; // Added
+  try { // Added
+    if (!fs.existsSync(targetEnvPath)) { // Added
+      console.error(`Error: ${targetEnvPath} not found. Please configure target environment via UI first.`); // Added
+      process.exit(1); // Added
+    } // Added
+    const rawTargetData = fs.readFileSync(targetEnvPath, 'utf-8'); // Added
+    if (!rawTargetData.trim()) { // Added
+      console.error(`Error: ${targetEnvPath} is empty. Please ensure target environment is configured.`); // Added
+      process.exit(1); // Added
+    } // Added
+    const targetData = JSON.parse(rawTargetData); // Added
+    if (!targetData.targetUrl) { // Added
+      console.error(`Error: targetUrl not found in ${targetEnvPath}.`); // Added
+      process.exit(1); // Added
+    } // Added
+    targetUrl = targetData.targetUrl; // Added
+    console.log(`🎯 Using target URL: ${targetUrl}`); // Added
+  } catch (error) { // Added
+    console.error(`Error reading or parsing ${targetEnvPath}:`, error); // Added
+    process.exit(1); // Added
+  } // Added
   
   // Configuração para tela cheia - ajustada para funcionar melhor no macOS
   const browser = await chromium.launch({ 
@@ -41,7 +65,7 @@ import * as path from 'path';
   
   // Criando contexto do navegador com tamanho máximo de janela
   const context = await browser.newContext({ 
-    storageState: '../config/auth.json',
+    storageState: path.join(__dirname, '../config/auth.json'), // Corrected path
     viewport: null // Isso desativa o viewport fixo, permitindo tela cheia
   });
   
@@ -58,7 +82,7 @@ import * as path from 'path';
     }
     
     // 1. Acessa o painel inicial
-    await page.goto('https://hmg2-mapa.cultura.gov.br/painel');
+    await page.goto(targetUrl); // Use the dynamic target URL
     console.log('✅ Página inicial acessada');
 
     // 2. Clica no botão do navbar "Eventos"
@@ -191,7 +215,7 @@ try {
             await editLink.click();
             console.log('✅ Abordagem 2: Clicou no link para edição do evento');
           } 
-          // Abordagem 3: Localizar o último link na modal__action (que deve ser o Completar Informações)
+          // Abordagem 3: Localizar o último link na modal__action (que deve ser o "Completar Informações")
           else {
             console.log('Tentando terceira abordagem...');
             const actionLinks = await page.locator('div.modal__action a').all();

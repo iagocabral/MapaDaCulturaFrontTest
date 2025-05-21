@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authForm = document.getElementById('authForm');
     const authResultDiv = document.getElementById('authResult');
     const testResultDiv = document.getElementById('testResult');
+    const targetUrlSelect = document.getElementById('targetUrl');
 
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData(authForm);
         const data = Object.fromEntries(formData.entries());
+        data.targetUrl = targetUrlSelect.value; // Add targetUrl to the payload
 
         try {
             const response = await fetch('/api/generate-auth', {
@@ -30,13 +32,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('button[data-script]').forEach(button => {
         button.addEventListener('click', async () => {
             const scriptName = button.getAttribute('data-script');
-            testResultDiv.innerHTML = `Running ${scriptName}...`;
+            const targetUrl = targetUrlSelect.value; // Get selected target URL
+            testResultDiv.innerHTML = `Running ${scriptName} on ${targetUrl}...`;
 
             try {
                 const response = await fetch('/api/run-test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ script: scriptName })
+                    body: JSON.stringify({ script: scriptName, targetUrl: targetUrl }) // Send targetUrl
                 });
                 const result = await response.json();
                 let outputHtml = `<p class="${response.ok ? 'success' : 'error'}">${result.message}</p>`;

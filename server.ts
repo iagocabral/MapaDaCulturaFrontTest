@@ -13,13 +13,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const configDir = path.join(__dirname, 'config');
 const cookieInputPath = path.join(configDir, 'cookie-input.json');
+const targetEnvPath = path.join(configDir, 'target-env.json'); // Path for target-env.json
 
 // Endpoint to generate auth.json
 app.post('/api/generate-auth', async (req, res) => {
   // Ensure req.body is correctly populated.
   // uid and phpsessid are expected. ts01868f16 is optional.
-  const { uid, phpsessid, ts01868f16 } = req.body;
+  const { uid, phpsessid, ts01868f16, targetUrl } = req.body; // Added targetUrl
 
+  if (!targetUrl) {
+    return res.status(400).json({ message: 'Target URL not provided.' });
+  }
   // Check if uid or phpsessid are missing or empty strings.
   if (!uid || !phpsessid) {
     // This is the expected error message if uid or phpsessid are not provided.
@@ -29,6 +33,10 @@ app.post('/api/generate-auth', async (req, res) => {
   try {
     await fs.mkdir(configDir, { recursive: true }); 
     
+    // Save targetUrl
+    await fs.writeFile(targetEnvPath, JSON.stringify({ targetUrl }, null, 2));
+    console.log(`Target environment saved: ${targetUrl}`);
+
     const cookiePayload: { uid: string; phpsessid: string; ts01868f16?: string } = {
         uid,
         phpsessid
@@ -41,6 +49,8 @@ app.post('/api/generate-auth', async (req, res) => {
     await fs.writeFile(cookieInputPath, JSON.stringify(cookiePayload, null, 2));
     
     console.log('Executing gera-auth.ts...');
+    // Pass targetUrl as an env variable if gera-auth.ts needs it directly,
+    // but current plan is for gera-auth.ts to read from target-env.json
     const { stdout, stderr } = await execPromise('npx ts-node config/gera-auth.ts');
     
     if (stderr && !stderr.includes('ExperimentalWarning')) {
@@ -57,10 +67,13 @@ app.post('/api/generate-auth', async (req, res) => {
 
 // Endpoint to run tests
 app.post('/api/run-test', async (req, res) => {
-  const { script } = req.body; // e.g., "test", "test:agente"
+  const { script, targetUrl } = req.body; // Added targetUrl
 
   if (!script) {
     return res.status(400).json({ message: 'Test script name not provided.' });
+  }
+  if (!targetUrl) {
+    return res.status(400).json({ message: 'Target URL not provided for test run.' });
   }
 
   // Basic validation to prevent arbitrary command execution
@@ -78,10 +91,16 @@ app.post('/api/run-test', async (req, res) => {
   }
 
   try {
-    console.log(`Executing npm run ${script}...`);
-    // Note: `npm run` changes CWD to package.json location, which is __dirname here.
-    // The individual test scripts in package.json already handle `cd testes`.
-    const { stdout, stderr } = await execPromise(`npm run ${script}`);
+    console.log(`Executing npm run ${script} on ${targetUrl}...`);
+    
+    const commandOptions = {
+      env: {
+        ...process.env, // Inherit existing environment variables
+        TARGET_URL: targetUrl // Set our custom environment variable
+      }
+    };
+
+    const { stdout, stderr } = await execPromise(`npm run ${script}`, commandOptions);
     
     // npm scripts might output to stderr for warnings or progress, so check for actual errors.
     // This logic might need refinement based on typical output.
@@ -94,7 +113,7 @@ app.post('/api/run-test', async (req, res) => {
     res.json({ message: `Test script '${script}' executed.`, stdout, stderr });
 
   } catch (error: any) {
-    console.error(`Failed to run test script '${script}':`, error);
+    console.error(`Failed to run test script '${script}' on ${targetUrl}:`, error);
     res.status(500).json({ 
         message: `Failed to run test script '${script}'`, 
         error: error.message, 

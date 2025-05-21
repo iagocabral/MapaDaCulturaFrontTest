@@ -5,7 +5,8 @@ import * as path from 'path';
 (async () => {
   // Define o caminho do arquivo que armazenará o contador
   const counterFilePath = path.join(__dirname, 'agent-counter.txt');
-  
+  const targetEnvPath = path.join(__dirname, '../config/target-env.json'); // Adjusted path
+
   // Lê o contador atual do arquivo ou usa 1 se não existir
   let counter = 1;
   try {
@@ -28,6 +29,29 @@ import * as path from 'path';
   const agentName = `Agente Automático ${counter} (${dateStr} ${timeStr})`;
   
   console.log(`🔢 Criando agente #${counter}`);
+
+  let targetUrl: string;
+  try {
+    if (!fs.existsSync(targetEnvPath)) {
+      console.error(`Error: ${targetEnvPath} not found. Please configure target environment via UI first.`);
+      process.exit(1);
+    }
+    const rawTargetData = fs.readFileSync(targetEnvPath, 'utf-8');
+    if (!rawTargetData.trim()) {
+      console.error(`Error: ${targetEnvPath} is empty. Please ensure target environment is configured.`);
+      process.exit(1);
+    }
+    const targetData = JSON.parse(rawTargetData);
+    if (!targetData.targetUrl) {
+      console.error(`Error: targetUrl not found in ${targetEnvPath}.`);
+      process.exit(1);
+    }
+    targetUrl = targetData.targetUrl;
+    console.log(`🎯 Using target URL: ${targetUrl}`);
+  } catch (error) {
+    console.error(`Error reading or parsing ${targetEnvPath}:`, error);
+    process.exit(1);
+  }
   
   // Configuração para tela cheia - ajustada para funcionar melhor no macOS
   const browser = await chromium.launch({ 
@@ -41,7 +65,7 @@ import * as path from 'path';
   
   // Criando contexto do navegador com tamanho máximo de janela
   const context = await browser.newContext({ 
-    storageState: 'auth.json',
+    storageState: path.join(__dirname, '../config/auth.json'), // Adjusted path for auth.json
     viewport: null // Isso desativa o viewport fixo, permitindo tela cheia
   });
   
@@ -58,7 +82,7 @@ import * as path from 'path';
     }
     
     // 1. Acessa o painel inicial
-    await page.goto('https://hmg2-mapa.cultura.gov.br/painel');
+    await page.goto(targetUrl); // Use the dynamic target URL
     console.log('✅ Página inicial acessada');
 
     // 2. Clica no botão do navbar "Agentes"
