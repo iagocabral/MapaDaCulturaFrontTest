@@ -17,7 +17,7 @@
   },
   "include": [
     "*.ts"
-  ],
+, "config/gera-auth.ts", "backup/criar-agente-completo.ts", "backup/criar-agente.ts", "backup/criar-espaco.ts", "backup/criar-evento.ts", "backup/criar-oportunidade.ts", "backup/criar-projeto.ts", "config/utils.ts", "lixo/save-recording.ts", "lixo/record-session.ts", "lixo/login-manual.ts"  ],
   "exclude": [
     "node_modules"
   ]

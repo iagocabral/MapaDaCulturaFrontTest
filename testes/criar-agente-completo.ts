@@ -4,7 +4,7 @@ import * as path from 'path';
 
 (async () => {
   // Define o caminho do arquivo que armazenará o contador
-  const counterFilePath = path.join(__dirname, 'agent-counter.txt');
+  const counterFilePath = path.join(__dirname, '../contadores', 'agent-counter.txt');
   
   // Lê o contador atual do arquivo ou usa 1 se não existir
   let counter = 1;
@@ -41,7 +41,7 @@ import * as path from 'path';
   
   // Criando contexto do navegador com tamanho máximo de janela
   const context = await browser.newContext({ 
-    storageState: 'auth.json',
+    storageState: '../config/auth.json',
     viewport: null // Isso desativa o viewport fixo, permitindo tela cheia
   });
   
@@ -351,7 +351,7 @@ import * as path from 'path';
     await page.waitForTimeout(500);
     
     await page.waitForSelector('textarea[name="longDescription"]');
-    await page.fill('textarea[name="longDescription"]', `Esta é uma descrição longa gerada automaticamente para o agente de teste #${counter}. Este agente foi criado usando automação Playwright como parte dos testes do sistema.`);
+    await page.fill('textarea[name="longDescription"]', `Esta é uma descrição longa gerada automaticamente para o agente de teste #${counter}. Este agente foi criado usando automação como parte dos testes do sistema.`);
     console.log('✅ Preencheu a Descrição Longa');
     
     // 16. Salva as alterações

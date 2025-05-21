@@ -7,11 +7,11 @@ const execPromise = util.promisify(exec);
 
 // List of test scripts to run
 const testScripts = [
-  'criar-agente-completo.ts',
-  'criar-espaco.ts',
-  'criar-evento.ts',
-  'criar-oportunidade.ts',
-  'criar-projeto.ts'
+  'testes/criar-agente-completo.ts',
+  'testes/criar-espaco.ts',
+  'testes/criar-evento.ts',
+  'testes/criar-oportunidade.ts',
+  'testes/criar-projeto.ts'
 ];
 
 // Define interface for error with stdout property for type checking
@@ -21,22 +21,25 @@ interface ExecError extends Error {
 }
 
 // Function to run a single test
-async function runTest(scriptName: string): Promise<boolean> {
+async function runTest(scriptPath: string): Promise<boolean> { // scriptPath is e.g. 'testes/criar-agente-completo.ts'
   const startTime = Date.now();
   console.log(`\n\n${'='.repeat(80)}`);
-  console.log(`🚀 Iniciando teste: ${scriptName}`);
+  console.log(`🚀 Iniciando teste: ${scriptPath}`);
   console.log(`${'='.repeat(80)}\n`);
   
+  const testsBaseDir = path.join(__dirname, 'testes'); // Base directory for tests, e.g., PROJECT_ROOT/testes
+  const scriptFileToExecute = path.basename(scriptPath); // e.g., 'criar-agente-completo.ts'
+  
   try {
-    // Execute the test script using ts-node
-    const { stdout, stderr } = await execPromise(`npx ts-node ${scriptName}`);
+    // Execute the test script using ts-node, with 'testes/' as the CWD.
+    const { stdout, stderr } = await execPromise(`npx ts-node ${scriptFileToExecute}`, { cwd: testsBaseDir });
     
     // Calculate execution time
     const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
     
     // Check for errors in stderr
     if (stderr && !stderr.includes('ExperimentalWarning') && !stderr.includes('Warning:')) {
-      console.error(`\n❌ ERRO no teste ${scriptName}:`);
+      console.error(`\n❌ ERRO no teste ${scriptPath}:`);
       console.error(stderr);
       console.log(`\n⏱️ Tempo de execução: ${executionTime} segundos (com erro)`);
       return false;
@@ -48,12 +51,12 @@ async function runTest(scriptName: string): Promise<boolean> {
       // console.log(stdout);
     }
     
-    console.log(`\n✅ Teste ${scriptName} completado com sucesso!`);
+    console.log(`\n✅ Teste ${scriptPath} completado com sucesso!`);
     console.log(`⏱️ Tempo de execução: ${executionTime} segundos`);
     return true;
   } catch (error) {
     const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.error(`\n❌ FALHA no teste ${scriptName}:`);
+    console.error(`\n❌ FALHA no teste ${scriptPath}:`);
     
     // Type checking for error properties
     if (error instanceof Error) {
@@ -97,7 +100,7 @@ function verifyTestFiles(): boolean {
 
 // Function to check if auth.json exists (required for all tests)
 function checkAuthFile(): boolean {
-  const authFilePath = path.join(__dirname, 'auth.json');
+  const authFilePath = path.join(__dirname, 'config/auth.json');
   if (!fs.existsSync(authFilePath)) {
     console.error('❌ Arquivo auth.json não encontrado! Este arquivo é necessário para autenticação.');
     console.error('   Por favor, crie o arquivo auth.json antes de executar os testes.');
