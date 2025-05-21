@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Runner UI</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        label { display: block; margin-top: 10px; }
+        input[type="text"] { width: calc(100% - 22px); padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px; margin-right: 10px; }
+        button:hover { background-color: #0056b3; }
+        .section { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee;}
+        pre { background-color: #e9e9e9; padding: 15px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 300px; overflow-y: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Automation Interface</h1>
+
+        <div class="section">
+            <h2>1. Generate auth.json</h2>
+            <p>Enter your cookie values obtained after logging into <a href="https://hmg2-mapa.cultura.gov.br" target="_blank">hmg2-mapa.cultura.gov.br</a>.</p>
+            <form id="authForm">
+                <label for="uid">mapasculturais.uid:</label>
+                <input type="text" id="uid" name="uid" required>
+
+                <label for="phpsessid">PHPSESSID:</label>
+                <input type="text" id="phpsessid" name="phpsessid" required>
+
+                <!-- <label for="ts01868f16">TS01868f16:</label>
+                <input type="text" id="ts01868f16" name="ts01868f16" required> -->
+
+                <button type="submit">Generate auth.json</button>
+            </form>
+            <div id="authResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Run Tests</h2>
+            <p>Ensure <code>auth.json</code> is generated before running tests.</p>
+            <button data-script="test">Run All Tests</button>
+            <button data-script="test:agente">Run Agente Test</button>
+            <button data-script="test:espaco">Run Espaço Test</button>
+            <button data-script="test:evento">Run Evento Test</button>
+            <button data-script="test:oportunidade">Run Oportunidade Test</button>
+            <button data-script="test:projeto">Run Projeto Test</button>
+            <div id="testResult"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
