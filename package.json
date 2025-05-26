@@ -21,13 +21,11 @@
     "start:ui": "ts-node server.ts",
     "build": "npm run build:prepare && npm run build:package",
     "build:prepare": "npx tsc --skipLibCheck --outDir ./dist-ts && npm run copy-assets",
-    "build:package": "electron-packager . TesteFrontApp --platform=darwin,win32 --arch=x64 --out=dist --overwrite --asar --prune=true",
-    "build:package:mac": "electron-packager . TesteFrontApp --platform=darwin --arch=x64 --out=dist --overwrite --asar --prune=true",
-    "build:package:win": "electron-packager . TesteFrontApp --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist --overwrite --asar --prune=true",
+    "build:package": "electron-packager . TesteFrontApp --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist --overwrite --asar --prune=false --electron-version=36.3.1",
     "build:full": "npm run build && npm run build:zip",
     "build:zip": "node build-scripts/create-zip.js",
     "copy-assets": "node build-scripts/copy-assets.js",
-    "postinstall": "echo 'To package for Windows, install Wine with: brew install --cask wine-stable'"
+    "embed-playwright": "node build-scripts/embed-playwright.js"
   },
   "author": "",
   "license": "ISC",
@@ -53,11 +51,17 @@
     "appId": "com.minc.testefrontapp",
     "productName": "Teste Front App",
     "asar": true,
+    "asarUnpack": [
+      "node_modules/express/**/*",
+      "node_modules/playwright/**/*",
+      "node_modules/ts-node/**/*"
+    ],
     "files": [
       "dist-ts/**/*",
       "public/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      "main.js"
     ],
     "extraResources": [
       {

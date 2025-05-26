@@ -1,46 +1,137 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const express = require('express');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execSync, exec } = require('child_process');
 
-// Determinando se a aplicação está empacotada (em produção) ou não
+// Defina variáveis globais
+let mainWindow = null;
+let server = null;
+let serverPort = 3000;
+
+// Verifica se o aplicativo está empacotado
 const isPackaged = app.isPackaged;
+const appPath = isPackaged 
+  ? path.dirname(app.getPath('exe'))
+  : __dirname;
 
-// Define caminhos base
-const basePath = isPackaged ? path.dirname(app.getPath('exe')) : __dirname;
+// Define diretórios importantes
+const configDir = path.join(appPath, 'config');
+const contadoresDir = path.join(appPath, 'contadores');
+const publicDir = isPackaged
+  ? path.join(process.resourcesPath, 'app', 'public')
+  : path.join(__dirname, 'public');
 
-// Garantindo que os diretórios necessários existam
-const configDir = path.join(basePath, 'config');
-const contadoresDir = path.join(basePath, 'contadores');
-
-// Criar diretórios se não existirem
-if (!fs.existsSync(configDir)) {
-  fs.mkdirSync(configDir, { recursive: true });
+// Função para verificar e criar diretórios
+function ensureDirectoryExists(dir) {
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Diretório criado: ${dir}`);
+    } catch (err) {
+      console.error(`Erro ao criar diretório ${dir}:`, err);
+    }
+  }
 }
-if (!fs.existsSync(contadoresDir)) {
-  fs.mkdirSync(contadoresDir, { recursive: true });
+
+// Certifique-se de que os diretórios necessários existam
+ensureDirectoryExists(configDir);
+ensureDirectoryExists(contadoresDir);
+
+// Função para verificar e instalar dependências necessárias
+async function checkAndInstallDependencies() {
+  try {
+    // Tenta importar express para verificar se está instalado
+    require.resolve('express');
+    console.log('✅ Express já está instalado');
+    
+    // Se chegou aqui, o express está disponível e podemos iniciar o servidor
+    startServer();
+  } catch (error) {
+    // Express não encontrado, mostra diálogo e instala
+    if (mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Instalando dependências',
+        message: 'Instalando dependências necessárias. Por favor, aguarde...',
+        buttons: ['OK']
+      });
+    }
+    
+    console.log('⚠️ Express não encontrado. Instalando dependências...');
+    
+    try {
+      // Verifica se temos um package.json no diretório do app
+      const packageJsonPath = path.join(appPath, 'package.json');
+      if (!fs.existsSync(packageJsonPath)) {
+        // Se não existir, copia do resources para o appPath
+        const resourcePackageJson = path.join(process.resourcesPath, 'app', 'package.json');
+        if (fs.existsSync(resourcePackageJson)) {
+          fs.copyFileSync(resourcePackageJson, packageJsonPath);
+          console.log('✅ package.json copiado para o diretório do aplicativo');
+        }
+      }
+      
+      // Instala apenas as dependências necessárias para o runtime
+      console.log('📦 Instalando dependências (express, playwright, ts-node)...');
+      
+      // Usando npm para instalar apenas as dependências necessárias
+      execSync('npm install express playwright ts-node --no-save', {
+        cwd: appPath,
+        stdio: 'inherit'
+      });
+      
+      console.log('✅ Dependências instaladas com sucesso');
+      
+      // Agora que as dependências estão instaladas, inicia o servidor
+      startServer();
+    } catch (installError) {
+      console.error('❌ Erro ao instalar dependências:', installError);
+      
+      // Mostra erro no diálogo
+      if (mainWindow) {
+        dialog.showErrorBox(
+          'Erro ao instalar dependências',
+          `Não foi possível instalar as dependências necessárias: ${installError.message}\n\nO aplicativo pode não funcionar corretamente.`
+        );
+      }
+    }
+  }
 }
 
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1000,
     height: 800,
+    icon: path.join(publicDir, 'icon.ico'),
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
-  win.loadURL('http://localhost:3000');
+  mainWindow.loadURL(`http://localhost:${serverPort}`);
+  
+  // Mostra o DevTools apenas em modo de desenvolvimento
+  if (!isPackaged) {
+    mainWindow.webContents.openDevTools();
+  }
+
+  // Prepare window to be garbage collected when closed
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(() => {
-  const server = express();
+function startServer() {
+  // Agora podemos importar express com segurança
+  const express = require('express');
+  
+  server = express();
   
   // Middleware para processar JSON
   server.use(express.json());
-  server.use(express.static(path.join(basePath, 'public'))); // Use basePath
+  server.use(express.static(publicDir));
   
   // API endpoint para gerar auth.json
   server.post('/api/generate-auth', (req, res) => {
@@ -62,12 +153,20 @@ app.whenReady().then(() => {
       const cookieInputPath = path.join(configDir, 'cookie-input.json');
       fs.writeFileSync(cookieInputPath, JSON.stringify({ uid, phpsessid }, null, 2));
       
-      // Executar script gera-auth.ts
-      let cmd = isPackaged 
-        ? `npx ts-node "${path.join(basePath, 'config', 'gera-auth.ts')}"`
-        : 'npx ts-node config/gera-auth.ts';
+      // Caminho para o script gera-auth.ts
+      const geraAuthPath = isPackaged
+        ? path.join(process.resourcesPath, 'app', 'dist-ts', 'config', 'gera-auth.js')
+        : path.join(__dirname, 'config', 'gera-auth.ts');
       
-      const result = execSync(cmd, { encoding: 'utf8' });
+      // Executa script gera-auth
+      let result;
+      if (isPackaged) {
+        // No modo empacotado, executa o JS compilado
+        result = execSync('node "' + geraAuthPath + '"', { encoding: 'utf8' });
+      } else {
+        // Em desenvolvimento, usa ts-node
+        result = execSync('npx ts-node "' + geraAuthPath + '"', { encoding: 'utf8' });
+      }
       
       res.json({ 
         success: true, 
@@ -106,18 +205,55 @@ app.whenReady().then(() => {
         });
       }
       
-      // Executar o teste
-      const npmCmd = isPackaged ? 
-        `cd "${basePath}" && npm run ${testScript}` : 
-        `npm run ${testScript}`;
+      // Executa o teste
+      let testProcess;
+      if (isPackaged) {
+        // No ambiente empacotado, executa os testes compilados
+        const scriptBase = testScript.replace('test:', '');
+        const scriptName = scriptBase === 'test' ? 'run-all-tests.js' : `testes/criar-${scriptBase}.js`;
+        const scriptPath = path.join(process.resourcesPath, 'app', 'dist-ts', scriptName);
         
-      const result = execSync(npmCmd, { encoding: 'utf8' });
+        testProcess = exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+          if (error) {
+            res.status(500).json({
+              success: false,
+              message: 'Erro ao executar teste',
+              error: error.message,
+              details: stderr || stdout
+            });
+            return;
+          }
+          
+          res.json({
+            success: true,
+            message: 'Teste executado com sucesso!',
+            details: stdout
+          });
+        });
+      } else {
+        // Em desenvolvimento, usa o npm run
+        testProcess = exec(`npm run ${testScript}`, (error, stdout, stderr) => {
+          if (error) {
+            res.status(500).json({
+              success: false,
+              message: 'Erro ao executar teste',
+              error: error.message,
+              details: stderr || stdout
+            });
+            return;
+          }
+          
+          res.json({
+            success: true,
+            message: 'Teste executado com sucesso!',
+            details: stdout
+          });
+        });
+      }
       
-      res.json({ 
-        success: true, 
-        message: 'Teste executado com sucesso!',
-        details: result
-      });
+      // Add process to global to allow cancellation
+      global.currentTestProcess = testProcess;
+      
     } catch (error) {
       console.error('Erro ao executar teste:', error);
       res.status(500).json({ 
@@ -127,22 +263,138 @@ app.whenReady().then(() => {
       });
     }
   });
+  
+  // API endpoint para cancelar teste em execução
+  server.post('/api/cancel-test', (req, res) => {
+    if (global.currentTestProcess) {
+      try {
+        // No Windows é mais eficaz usar taskkill
+        if (process.platform === 'win32') {
+          execSync(`taskkill /pid ${global.currentTestProcess.pid} /T /F`);
+        } else {
+          global.currentTestProcess.kill('SIGTERM');
+        }
+        
+        global.currentTestProcess = null;
+        res.json({ success: true, message: 'Teste cancelado com sucesso' });
+      } catch (error) {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Erro ao cancelar teste',
+          error: error.message 
+        });
+      }
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        message: 'Nenhum teste em execução' 
+      });
+    }
+  });
 
-  server.listen(3000, () => {
-    console.log('Servidor rodando em http://localhost:3000');
+  // Inicia o servidor Express
+  server.listen(serverPort, () => {
+    console.log(`Servidor rodando em http://localhost:${serverPort}`);
     createWindow();
+  });
+}
+
+// Quando o Electron estiver pronto
+app.whenReady().then(async () => {
+  // Mostra uma janela de carregamento inicial
+  const loadingWin = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    show: false,
+    webPreferences: {
+      nodeIntegration: true
+    }
+  });
+  
+  // Cria o HTML de carregamento dinâmico
+  const loadingHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          background: #f5f5f5;
+          flex-direction: column;
+          color: #333;
+        }
+        h2 {
+          margin-bottom: 20px;
+        }
+        .loader {
+          border: 4px solid #f3f3f3;
+          border-radius: 50%;
+          border-top: 4px solid #3498db;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+          margin-bottom: 20px;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    </head>
+    <body>
+      <h2>Iniciando aplicação...</h2>
+      <div class="loader"></div>
+      <p>Por favor aguarde enquanto verificamos as dependências</p>
+    </body>
+    </html>
+  `;
+  
+  loadingWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(loadingHTML)}`);
+  
+  loadingWin.once('ready-to-show', () => {
+    loadingWin.show();
+    
+    // Verificar e instalar as dependências
+    checkAndInstallDependencies()
+      .then(() => {
+        // Quando terminar, fecha a janela de carregamento
+        if (loadingWin && !loadingWin.isDestroyed()) {
+          loadingWin.close();
+        }
+      })
+      .catch((error) => {
+        console.error('Erro durante inicialização:', error);
+        if (loadingWin && !loadingWin.isDestroyed()) {
+          loadingWin.close();
+        }
+      });
+  });
+  
+  // No macOS, recria a janela ao clicar no ícone
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
   });
 });
 
-// Adicionando tratamento para quando todas as janelas forem fechadas
+// Finaliza a aplicação quando todas as janelas forem fechadas
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+// Garante que o servidor seja encerrado quando o app for fechado
+app.on('will-quit', () => {
+  if (server) {
+    server.close();
   }
 });
