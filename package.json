@@ -16,16 +16,18 @@
     "record:url": "ts-node record-session.ts",
     "record:save": "ts-node save-recording.ts",
     "view:recording": "npx playwright show-trace trace.zip",
-    "install:playwright": "npx playwright install",
+    "install:playwright": "npx playwright install chromium",
     "setup": "npm install && npm run install:playwright",
     "start:ui": "ts-node server.ts",
     "build": "npm run build:prepare && npm run build:package",
     "build:prepare": "npx tsc --skipLibCheck --outDir ./dist-ts && npm run copy-assets",
-    "build:package": "electron-packager . TesteFrontApp --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist --overwrite --asar --prune=false --electron-version=36.3.1",
-    "build:full": "npm run build && npm run build:zip",
+    "build:package": "electron-packager . TesteFrontApp --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist --overwrite --asar=false --prune=false --electron-version=36.3.1",
+    "build:full": "npm run build && npm run embed-playwright && npm run build:installer",
     "build:zip": "node build-scripts/create-zip.js",
+    "build:installer": "node build-scripts/create-installer.js",
     "copy-assets": "node build-scripts/copy-assets.js",
-    "embed-playwright": "node build-scripts/embed-playwright.js"
+    "embed-playwright": "node build-scripts/embed-playwright.js",
+    "embed-node": "node build-scripts/embed-node.js"
   },
   "author": "",
   "license": "ISC",
@@ -40,7 +42,8 @@
     "archiver": "^6.0.1",
     "electron": "^36.3.1",
     "electron-packager": "^17.1.2",
-    "fs-extra": "^11.1.1"
+    "fs-extra": "^11.1.1",
+    "electron-winstaller": "^5.1.0"
   },
   "ts-node": {
     "compilerOptions": {
@@ -50,12 +53,7 @@
   "build": {
     "appId": "com.minc.testefrontapp",
     "productName": "Teste Front App",
-    "asar": true,
-    "asarUnpack": [
-      "node_modules/express/**/*",
-      "node_modules/playwright/**/*",
-      "node_modules/ts-node/**/*"
-    ],
+    "asar": false,
     "files": [
       "dist-ts/**/*",
       "public/**/*",

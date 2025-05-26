@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execSync, exec } = require('child_process');
+const { execSync, exec, spawn } = require('child_process');
 
 // Defina variáveis globais
 let mainWindow = null;
@@ -21,6 +21,11 @@ const publicDir = isPackaged
   ? path.join(process.resourcesPath, 'app', 'public')
   : path.join(__dirname, 'public');
 
+// Caminho para o Node.js embutido (apenas para versão empacotada)
+const embeddedNodePath = isPackaged
+  ? path.join(appPath, 'node', 'node.exe')
+  : null;
+
 // Função para verificar e criar diretórios
 function ensureDirectoryExists(dir) {
   if (!fs.existsSync(dir)) {
@@ -36,6 +41,32 @@ function ensureDirectoryExists(dir) {
 // Certifique-se de que os diretórios necessários existam
 ensureDirectoryExists(configDir);
 ensureDirectoryExists(contadoresDir);
+
+// Função para executar comandos usando Node.js embutido (quando empacotado)
+function runWithEmbeddedNode(command, options = {}) {
+  if (isPackaged && fs.existsSync(embeddedNodePath)) {
+    // Divide o comando em programa e argumentos
+    const parts = command.split(' ');
+    const program = parts[0];
+    const args = parts.slice(1);
+    
+    // Se o programa for 'node', substitui pelo caminho do node embutido
+    if (program === 'node') {
+      return spawn(embeddedNodePath, args, options);
+    }
+    
+    // Se for 'npm', executa via node embutido
+    if (program === 'npm') {
+      const npmPath = path.join(appPath, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+      if (fs.existsSync(npmPath)) {
+        return spawn(embeddedNodePath, [npmPath, ...args], options);
+      }
+    }
+  }
+  
+  // Fallback para execução padrão
+  return spawn(command, options);
+}
 
 // Função para verificar e instalar dependências necessárias
 async function checkAndInstallDependencies() {
@@ -71,27 +102,33 @@ async function checkAndInstallDependencies() {
         }
       }
       
-      // Instala apenas as dependências necessárias para o runtime
-      console.log('📦 Instalando dependências (express, playwright, ts-node)...');
+      // Todas as dependências já devem estar no pacote, apenas precisamos garantir
+      // que os módulos node estão no lugar certo
+      const nodeModulesPath = path.join(appPath, 'node_modules');
+      const resourceNodeModulesPath = path.join(process.resourcesPath, 'app', 'node_modules');
       
-      // Usando npm para instalar apenas as dependências necessárias
-      execSync('npm install express playwright ts-node --no-save', {
-        cwd: appPath,
-        stdio: 'inherit'
-      });
+      if (!fs.existsSync(nodeModulesPath) && fs.existsSync(resourceNodeModulesPath)) {
+        // Criar link simbólico para node_modules se não existir
+        try {
+          fs.symlinkSync(resourceNodeModulesPath, nodeModulesPath, 'junction');
+          console.log('✅ Link simbólico para node_modules criado');
+        } catch (linkError) {
+          console.error('❌ Erro ao criar link simbólico:', linkError);
+        }
+      }
       
-      console.log('✅ Dependências instaladas com sucesso');
+      console.log('✅ Dependências disponíveis');
       
       // Agora que as dependências estão instaladas, inicia o servidor
       startServer();
     } catch (installError) {
-      console.error('❌ Erro ao instalar dependências:', installError);
+      console.error('❌ Erro ao verificar dependências:', installError);
       
       // Mostra erro no diálogo
       if (mainWindow) {
         dialog.showErrorBox(
-          'Erro ao instalar dependências',
-          `Não foi possível instalar as dependências necessárias: ${installError.message}\n\nO aplicativo pode não funcionar corretamente.`
+          'Erro ao verificar dependências',
+          `Não foi possível verificar as dependências necessárias: ${installError.message}\n\nO aplicativo pode não funcionar corretamente.`
         );
       }
     }
@@ -161,8 +198,9 @@ function startServer() {
       // Executa script gera-auth
       let result;
       if (isPackaged) {
-        // No modo empacotado, executa o JS compilado
-        result = execSync('node "' + geraAuthPath + '"', { encoding: 'utf8' });
+        // No modo empacotado, executa o JS compilado usando Node embutido se disponível
+        const nodePath = fs.existsSync(embeddedNodePath) ? embeddedNodePath : 'node';
+        result = execSync(`"${nodePath}" "${geraAuthPath}"`, { encoding: 'utf8' });
       } else {
         // Em desenvolvimento, usa ts-node
         result = execSync('npx ts-node "' + geraAuthPath + '"', { encoding: 'utf8' });
@@ -205,15 +243,18 @@ function startServer() {
         });
       }
       
-      // Executa o teste
       let testProcess;
+      
       if (isPackaged) {
         // No ambiente empacotado, executa os testes compilados
         const scriptBase = testScript.replace('test:', '');
         const scriptName = scriptBase === 'test' ? 'run-all-tests.js' : `testes/criar-${scriptBase}.js`;
         const scriptPath = path.join(process.resourcesPath, 'app', 'dist-ts', scriptName);
         
-        testProcess = exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+        // Usa Node.js embutido se disponível
+        const nodePath = fs.existsSync(embeddedNodePath) ? embeddedNodePath : 'node';
+        
+        testProcess = exec(`"${nodePath}" "${scriptPath}"`, (error, stdout, stderr) => {
           if (error) {
             res.status(500).json({
               success: false,
