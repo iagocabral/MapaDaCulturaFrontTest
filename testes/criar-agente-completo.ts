@@ -4,8 +4,13 @@ import * as path from 'path';
 
 (async () => {
   // Define o caminho do arquivo que armazenará o contador
-  const counterFilePath = path.join(__dirname, '../contadores', 'agent-counter.txt');
-  const targetEnvPath = path.join(__dirname, '../config/target-env.json'); // Corrected path
+  const isPackaged = typeof (process as any).pkg !== 'undefined';
+  const baseDir = isPackaged ? path.dirname(process.execPath) : path.join(__dirname, '..');
+
+  // Define o caminho do arquivo que armazenará o contador
+  const counterFilePath = path.join(baseDir, 'contadores', 'agent-counter.txt');
+  const targetEnvPath = path.join(baseDir, 'config', 'target-env.json');
+  const authFilePath = path.join(baseDir, 'config', 'auth.json'); // Adicionado para auth.json
   
   // Lê o contador atual do arquivo ou usa 1 se não existir
   let counter = 1;
@@ -65,7 +70,7 @@ import * as path from 'path';
   
   // Criando contexto do navegador com tamanho máximo de janela
   const context = await browser.newContext({ 
-    storageState: path.join(__dirname, '../config/auth.json'), // Corrected path for auth.json
+    storageState: authFilePath, // Corrected path for auth.json
     viewport: null // Isso desativa o viewport fixo, permitindo tela cheia
   });
   

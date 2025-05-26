@@ -281,7 +281,7 @@ import * as path from 'path';
               // Clica em uma posição aproximada onde estaria um agente na lista
               // Considerando que o modal está centralizado e o primeiro item está no topo
               await page.mouse.click(viewport.width / 2, viewport.height / 3);
-              console.log('✅ Clicou em posição fixa aproximada para selecionar agente');
+              console.log('✅ Clicou na posição fixa aproximada para selecionar agente');
             }
           }
         }
@@ -539,8 +539,11 @@ import * as path from 'path';
       try {
         
         const resultados = await page.evaluate(() => {
-          const resultados = {
-            campos: { encontrados: 0, preenchidos: 0 },
+          const resultados: {
+            sucesso: boolean;
+            detalhes: string[];
+          } = {
+            sucesso: false,
             detalhes: []
           };
           
@@ -558,7 +561,7 @@ import * as path from 'path';
               return null;
             }
             
-            resultados.campos.encontrados++;
+            resultados.sucesso = true;
             return input;
           }
           
@@ -572,7 +575,7 @@ import * as path from 'path';
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
             
-            resultados.campos.preenchidos++;
+            resultados.detalhes.push(`Campo ${input.name} preenchido com ${valor}`);
             return true;
           }
           
@@ -599,8 +602,8 @@ import * as path from 'path';
         
         console.log('📊 Resultado da tentativa via JavaScript:', resultados);
         
-        if (resultados.campos.preenchidos > 0) {
-          console.log(`✅ Preencheu ${resultados.campos.preenchidos} de 6 campos obrigatórios via JavaScript`);
+        if (resultados.detalhes.length > 0) {
+          console.log(`✅ Preencheu ${resultados.detalhes.length} campos obrigatórios via JavaScript`);
         } else {
           throw new Error('Não conseguiu preencher campos via JavaScript');
         }
