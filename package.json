@@ -20,7 +20,7 @@
     "setup": "npm install && npm run install:playwright",
     "start:ui": "ts-node server.ts",
     "build": "npm run build:prepare && npm run build:package",
-    "build:prepare": "npx tsc --skipLibCheck --outDir ./dist-ts && npm run copy-assets",
+    "build:prepare": "node build-scripts/prepare-ts.js && npm run copy-assets",
     "build:package": "electron-packager . TesteFrontApp --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist --overwrite --asar=false --prune=false --electron-version=36.3.1",
     "build:full": "npm run build && npm run embed-playwright && npm run build:installer",
     "build:zip": "node build-scripts/create-zip.js",

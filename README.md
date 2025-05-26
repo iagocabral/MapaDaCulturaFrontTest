@@ -109,3 +109,15 @@ Para construir o aplicativo a partir do código fonte:
    ```
 
 Os arquivos distribuíveis serão gerados na pasta `dist/`.
+
+
+```
+# Compila TypeScript, copia assets, e empacota como .exe
+npm run build
+
+# Para incluir navegadores Playwright no pacote
+npm run embed-playwright
+
+# Para criar um arquivo zip final
+npm run build:full
+```
