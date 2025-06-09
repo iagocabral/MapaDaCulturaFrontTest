@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Runner UI</title>
+    <link rel="stylesheet" href="style.css"> <!-- Link to external CSS -->
+</head>
+<body>
+    <div class="container">
+        <h1>Test Automation Interface</h1>
+
+        <div class="section">
+            <h2>1. Configure Environment & Auth</h2>
+            <label for="targetUrl">Target Environment:</label>
+            <select id="targetUrl" name="targetUrl">
+                <option value="https://hmg2-mapa.cultura.gov.br/painel">HMG2 (hmg2-mapa.cultura.gov.br)</option>
+                <option value="https://upd-mapa.cultura.gov.br/painel">UPD (upd-mapa.cultura.gov.br)</option>
+                <option value="https://mapa.cultura.gov.br/painel">PROD (mapa.cultura.gov.br)</option>
+            </select>
+
+            <p style="margin-top: 15px;">Enter your cookie values obtained after logging into the selected environment.</p>
+            <form id="authForm">
+                <label for="uid">mapasculturais.uid:</label>
+                <input type="text" id="uid" name="uid" required>
+
+                <label for="phpsessid">PHPSESSID:</label>
+                <input type="text" id="phpsessid" name="phpsessid" required>
+
+                <!-- <label for="ts01868f16">TS01868f16:</label>
+                <input type="text" id="ts01868f16" name="ts01868f16" required> -->
+
+                <button type="submit">Generate auth.json</button>
+            </form>
+            <div id="authResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Run Tests</h2>
+            <p>Ensure <code>auth.json</code> is generated before running tests.</p>
+            <button data-script="test" class="run-all-button">Run All Tests</button> <!-- Moved to new line and added class -->
+            <div> <!-- Wrapper for other test buttons -->
+                <button data-script="test:agente">Run Agente Test</button>
+                <button data-script="test:espaco">Run Espaço Test</button>
+                <button data-script="test:evento">Run Evento Test</button>
+                <button data-script="test:oportunidade">Run Oportunidade Test</button>
+                <button data-script="test:projeto">Run Projeto Test</button>
+            </div>
+            <button id="stopExecutionButton" class="stop-button" style="display: none;">Stop Execution</button>
+            <div id="testResult"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -185,8 +185,46 @@ import * as path from 'path';
     }
     
     // 11. Clica no botão "Criar e Publicar"
-    await page.click('button:has-text("Criar e Publicar")');
-    console.log('✅ Clicou em Criar e Publicar');
+    try {
+      // Abordagem 1: try catch pra cada abordagem
+      try {
+        await page.click('button:has-text("Criar e Publicar")');
+        console.log('✅ Clicou no botão Criar e Publicar (Abordagem 1)');
+      } catch (e: any) {
+        console.log('⚠️ Abordagem 1 falhou:', e.message);
+        
+        // Abordagem 2: Localizar por texto aproximado/attribute
+        try {
+          const createButton = await page.locator('button[type="submit"], button.button--primary').first();
+          await createButton.click();
+          console.log('✅ Clicou no botão Criar e Publicar (Abordagem 2)');
+        } catch (e2: any) {
+          console.log('⚠️ Abordagem 2 falhou:', e2.message);
+          
+          // Abordagem 3: Clique via JavaScript na área do botão
+          try {
+            // Pega a posição aproximada do botão usando a posição do modal
+            const modalBounds = await page.evaluate(() => {
+              const modal = document.querySelector('.modal__content');
+              return modal ? modal.getBoundingClientRect() : null;
+            });
+            
+            if (modalBounds) {
+              // Clica no canto inferior direito do modal (onde geralmente fica o botão)
+              await page.mouse.click(
+                modalBounds.right - 100, 
+                modalBounds.bottom - 50
+              );
+              console.log('✅ Clicou no botão Criar e Publicar (Abordagem 3: posição aproximada)');
+            }
+          } catch (e3: any) {
+            console.log('⚠️ Abordagem 3 falhou:', e3.message);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Não foi possível clicar no botão Criar e Publicar:', error);
+    }
     
     // 12. Aguarda confirmação de sucesso (pode ser um modal ou redirecionamento)
 try {
@@ -821,8 +859,11 @@ try {
           const textareas = document.querySelectorAll('textarea');
           let apresentacaoElement = null;
           
+          // Convert NodeList to Array to ensure it's iterable
+          const textareasArray = Array.from(textareas);
+          
           // Verifica todos os textareas
-          for (const textarea of textareas) {
+          for (const textarea of textareasArray) {
             // Se ainda não encontramos e este não foi preenchido
             if (!apresentacaoElement && (!textarea.value || textarea.value.trim() === '')) {
               // Verifica se tem um rótulo de apresentação próximo

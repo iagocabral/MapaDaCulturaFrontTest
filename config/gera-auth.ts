@@ -13,10 +13,41 @@ interface TargetEnv {
   targetUrl: string;
 }
 
+// Determina se estamos no ambiente empacotado ou não
+const isElectronApp = typeof process.versions.electron !== 'undefined';
+
+// Define the base path
+let basePath: string;
+let app: any;
+
+// Handle different environments for paths
+if (isElectronApp) {
+  try {
+    // Try to import electron if we're in an Electron context
+    const electron = require('electron');
+    app = electron.app;
+    const isPackaged = app.isPackaged;
+    basePath = isPackaged ? path.dirname(app.getPath('exe')) : path.join(__dirname, '..');
+  } catch (e) {
+    // Fallback if electron import fails
+    basePath = path.join(__dirname, '..');
+  }
+} else {
+  // Standard Node.js environment
+  basePath = path.join(__dirname, '..');
+}
+
+// Ensure all paths exist
+const configDir = path.join(basePath, 'config');
+if (!fs.existsSync(configDir)) {
+  fs.mkdirSync(configDir, { recursive: true });
+  console.log(`Created config directory: ${configDir}`);
+}
+
 (async () => {
-  const cookieInputPath = path.join(__dirname, 'cookie-input.json');
-  const authOutputPath = path.join(__dirname, 'auth.json');
-  const targetEnvPath = path.join(__dirname, 'target-env.json');
+  const cookieInputPath = path.join(configDir, 'cookie-input.json');
+  const authOutputPath = path.join(configDir, 'auth.json');
+  const targetEnvPath = path.join(configDir, 'target-env.json');
 
   if (!fs.existsSync(cookieInputPath)) {
     console.error(`Error: ${cookieInputPath} not found.`);
@@ -70,8 +101,32 @@ interface TargetEnv {
     console.error(`Error: Missing one or more required fields (uid, phpsessid) in ${cookieInputPath}.`);
     process.exit(1);
   }
+  
+  // Configurar o caminho para os navegadores do Playwright quando empacotado
+  const playwrightOptions: any = {};
+  
+  // When we're in a packaged app, use the embedded browsers
+  const isPackaged = isElectronApp && app && app.isPackaged;
+  if (isPackaged) {
+    const browserPath = path.join(basePath, 'playwright-browsers');
+    if (fs.existsSync(browserPath)) {
+      console.log(`Using embedded Playwright browsers at: ${browserPath}`);
+      
+      // Use the appropriate path based on the platform
+      const platform = process.platform;
+      if (platform === 'win32') {
+        playwrightOptions.executablePath = path.join(browserPath, 'chromium/chrome-win/chrome.exe');
+      } else if (platform === 'darwin') {
+        playwrightOptions.executablePath = path.join(browserPath, 'chromium/chrome-mac/Chromium.app/Contents/MacOS/Chromium');
+      } else if (platform === 'linux') {
+        playwrightOptions.executablePath = path.join(browserPath, 'chromium/chrome-linux/chrome');
+      }
+    } else {
+      console.log('Embedded Playwright browsers not found, using system default.');
+    }
+  }
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(playwrightOptions);
   const context = await browser.newContext();
 
   const cookies: Cookie[] = [

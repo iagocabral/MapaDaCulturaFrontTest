@@ -197,7 +197,7 @@ import * as path from 'path';
     await page.waitForTimeout(3000);
     
     // Função para scrollar até um elemento e torná-lo visível
-    async function scrollToElement(selector) {
+    async function scrollToElement(selector: string) {
       await page.evaluate((sel) => {
         const element = document.querySelector(sel);
         if (element) {

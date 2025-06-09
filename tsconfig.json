@@ -1,24 +1,30 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
-    "declaration": false,
-    "sourceMap": true
+    "outDir": "./dist-ts",
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "declaration": true,
+    "noImplicitAny": false,
+    "downlevelIteration": true
   },
   "include": [
+    "config/**/*.ts",
+    "testes/**/*.ts",
     "*.ts"
-, "config/gera-auth.ts", "backup/criar-agente-completo.ts", "backup/criar-agente.ts", "backup/criar-espaco.ts", "backup/criar-evento.ts", "backup/criar-oportunidade.ts", "backup/criar-projeto.ts", "config/utils.ts", "lixo/save-recording.ts", "lixo/record-session.ts", "lixo/login-manual.ts"  ],
+  ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist-ts",
+    "dist"
   ]
 }
